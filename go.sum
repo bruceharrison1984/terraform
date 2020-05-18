@@ -29,6 +29,8 @@ github.com/Azure/go-autorest/autorest/azure/cli v0.2.0 h1:pSwNMF0qotgehbQNllUWwJ
 github.com/Azure/go-autorest/autorest/azure/cli v0.2.0/go.mod h1:WWTbGPvkAg3I4ms2j2s+Zr5xCGwGqTQh+6M2ZqOczkE=
 github.com/Azure/go-autorest/autorest/azure/cli v0.3.0 h1:5PAqnv+CSTwW9mlZWZAizmzrazFWEgZykEZXpr2hDtY=
 github.com/Azure/go-autorest/autorest/azure/cli v0.3.0/go.mod h1:rNYMNAefZMRowqCV0cVhr/YDW5dD7afFq9nXAXL4ykE=
+github.com/Azure/go-autorest/autorest/azure/cli v0.3.1 h1:LXl088ZQlP0SBppGFsRZonW6hSvwgL5gRByMbvUbx8U=
+github.com/Azure/go-autorest/autorest/azure/cli v0.3.1/go.mod h1:ZG5p860J94/0kI9mNJVoIoLgXcirM2gF5i2kWloofxw=
 github.com/Azure/go-autorest/autorest/date v0.1.0 h1:YGrhWfrgtFs84+h0o46rJrlmsZtyZRg470CqAXTZaGM=
 github.com/Azure/go-autorest/autorest/date v0.1.0/go.mod h1:plvfp3oPSKwf2DNjlBjWF/7vwR+cUD/ELuzDCXwHUVA=
 github.com/Azure/go-autorest/autorest/date v0.2.0 h1:yW+Zlqf26583pE43KhfnhFcdmSWlm5Ew6bxipnr/tbM=
@@ -452,6 +454,8 @@ github.com/tombuildsstuff/go-autorest v14.0.1-0.20200416184303-d4e299a3c04a+inco
 github.com/tombuildsstuff/go-autorest v14.0.1-0.20200416184303-d4e299a3c04a+incompatible/go.mod h1:OVwh0+NZeL2RTqclVEX+p20Qys7Ihpd52PD0eqFDXtY=
 github.com/tombuildsstuff/go-autorest/autorest v0.10.1-0.20200416184303-d4e299a3c04a h1:F/4zKpn8ra3rhPMBzrVc7LYL1GB1ucl/va4I+4ubUWg=
 github.com/tombuildsstuff/go-autorest/autorest v0.10.1-0.20200416184303-d4e299a3c04a/go.mod h1:/FALq9T/kS7b5J5qsQ+RSTUdAmGFqi0vUdVNNx8q630=
+github.com/tombuildsstuff/go-autorest/autorest/azure/auth v0.4.3-0.20200416184303-d4e299a3c04a h1:vf5kIgZ4D0DtEpUmUsHyggbtWZgfeDhD2xA7NY8yzlo=
+github.com/tombuildsstuff/go-autorest/autorest/azure/auth v0.4.3-0.20200416184303-d4e299a3c04a/go.mod h1:jyL63IJfcs2j+2n9xmyFz6yUnXex+c/ZfelxDwSbkdc=
 github.com/ugorji/go v0.0.0-20180813092308-00b869d2f4a5 h1:cMjKdf4PxEBN9K5HaD9UMW8gkTbM0kMzkTa9SJe0WNQ=
 github.com/ugorji/go v0.0.0-20180813092308-00b869d2f4a5/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/ulikunitz/xz v0.5.5 h1:pFrO0lVpTBXLpYw+pnLj6TbvHuyjXMfjGeCwSqCVwok=
