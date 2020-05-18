@@ -33,7 +33,7 @@ var (
 )
 
 func (n *nodeExpandModule) Name() string {
-	return n.Addr.String()
+	return n.Addr.String() + " (expand)"
 }
 
 // GraphNodeModulePath implementation
@@ -97,6 +97,27 @@ func (n *nodeExpandModule) EvalTree() EvalNode {
 // empty resources and modules from the state.
 type nodeCloseModule struct {
 	Addr addrs.Module
+
+	// orphaned indicates that this module has no expansion, because it no
+	// longer exists in the configuration
+	orphaned bool
+}
+
+var (
+	_ graphNodeModuleCloser  = (*nodeCloseModule)(nil)
+	_ GraphNodeReferenceable = (*nodeCloseModule)(nil)
+)
+
+func (n *nodeCloseModule) ModulePath() addrs.Module {
+	mod, _ := n.Addr.Call()
+	return mod
+}
+
+func (n *nodeCloseModule) ReferenceableAddrs() []addrs.Referenceable {
+	_, call := n.Addr.Call()
+	return []addrs.Referenceable{
+		call,
+	}
 }
 
 func (n *nodeCloseModule) Name() string {
@@ -123,7 +144,8 @@ func (n *nodeCloseModule) EvalTree() EvalNode {
 			&EvalOpFilter{
 				Ops: []walkOperation{walkApply, walkDestroy},
 				Node: &evalCloseModule{
-					Addr: n.Addr,
+					Addr:     n.Addr,
+					orphaned: n.orphaned,
 				},
 			},
 		},
@@ -131,7 +153,8 @@ func (n *nodeCloseModule) EvalTree() EvalNode {
 }
 
 type evalCloseModule struct {
-	Addr addrs.Module
+	Addr     addrs.Module
+	orphaned bool
 }
 
 func (n *evalCloseModule) Eval(ctx EvalContext) (interface{}, error) {
@@ -141,7 +164,11 @@ func (n *evalCloseModule) Eval(ctx EvalContext) (interface{}, error) {
 	defer ctx.State().Unlock()
 
 	expander := ctx.InstanceExpander()
-	currentModuleInstances := expander.ExpandModule(n.Addr)
+	var currentModuleInstances []addrs.ModuleInstance
+	// we can't expand if we're just removing
+	if !n.orphaned {
+		currentModuleInstances = expander.ExpandModule(n.Addr)
+	}
 
 	for modKey, mod := range state.Modules {
 		if !n.Addr.Equal(mod.Addr.Module()) {
@@ -155,13 +182,18 @@ func (n *evalCloseModule) Eval(ctx EvalContext) (interface{}, error) {
 			}
 		}
 
-		// if this instance is not in the current expansion, remove it from the
-		// state
 		found := false
-		for _, current := range currentModuleInstances {
-			if current.Equal(mod.Addr) {
-				found = true
-				break
+		if n.orphaned {
+			// we're removing the entire module, so all instances must go
+			found = true
+		} else {
+			// if this instance is not in the current expansion, remove it from
+			// the state
+			for _, current := range currentModuleInstances {
+				if current.Equal(mod.Addr) {
+					found = true
+					break
+				}
 			}
 		}
 
@@ -197,14 +229,14 @@ func (n *evalPrepareModuleExpansion) Eval(ctx EvalContext) (interface{}, error) 
 
 		switch {
 		case n.ModuleCall.Count != nil:
-			count, diags := evaluateResourceCountExpression(n.ModuleCall.Count, ctx)
+			count, diags := evaluateCountExpression(n.ModuleCall.Count, ctx)
 			if diags.HasErrors() {
 				return nil, diags.Err()
 			}
 			expander.SetModuleCount(module, call, count)
 
 		case n.ModuleCall.ForEach != nil:
-			forEach, diags := evaluateResourceForEachExpression(n.ModuleCall.ForEach, ctx)
+			forEach, diags := evaluateForEachExpression(n.ModuleCall.ForEach, ctx)
 			if diags.HasErrors() {
 				return nil, diags.Err()
 			}
@@ -249,8 +281,27 @@ func (n *evalValidateModule) Eval(ctx EvalContext) (interface{}, error) {
 	// will be a single instance, but still get our address in the expected
 	// manner anyway to ensure they've been registered correctly.
 	for _, module := range expander.ExpandModule(n.Addr.Parent()) {
+		ctx = ctx.WithPath(module)
+
+		// Validate our for_each and count expressions at a basic level
+		// We skip validation on known, because there will be unknown values before
+		// a full expansion, presuming these errors will be caught in later steps
+		switch {
+		case n.ModuleCall.Count != nil:
+			_, diags := evaluateCountExpressionValue(n.ModuleCall.Count, ctx)
+			if diags.HasErrors() {
+				return nil, diags.Err()
+			}
+
+		case n.ModuleCall.ForEach != nil:
+			_, diags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx)
+			if diags.HasErrors() {
+				return nil, diags.Err()
+			}
+		}
+
 		// now set our own mode to single
-		ctx.InstanceExpander().SetModuleSingle(module, call)
+		expander.SetModuleSingle(module, call)
 	}
 	return nil, nil
 }

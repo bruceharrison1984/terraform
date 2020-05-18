@@ -364,7 +364,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		}),
 	}
 	go func() {
-		err = server.Serve(listener)
+		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -417,8 +417,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		return nil, diags
 	}
 
-	err = server.Close()
-	if err != nil {
+	if err := server.Close(); err != nil {
 		// The server will close soon enough when our process exits anyway,
 		// so we won't fuss about it for right now.
 		log.Printf("[WARN] login: callback server can't shut down: %s", err)
@@ -655,14 +654,16 @@ func (c *LoginCommand) proofKey() (key, challenge string, err error) {
 	// UUID spec, but our go-uuid just generates totally random number sequences
 	// formatted in the conventional UUID syntax, so that concern does not
 	// apply here: this is just a 128-bit crypto-random number.
-	key, err = uuid.GenerateUUID()
+	uu, err := uuid.GenerateUUID()
 	if err != nil {
 		return "", "", err
 	}
 
+	key = fmt.Sprintf("%s.%09d", uu, rand.Intn(999999999))
+
 	h := sha256.New()
 	h.Write([]byte(key))
-	challenge = base64.URLEncoding.EncodeToString(h.Sum(nil))
+	challenge = base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
 	return key, challenge, nil
 }

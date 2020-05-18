@@ -1,7 +1,6 @@
 package getproviders
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"runtime"
 	"sort"
@@ -15,6 +14,10 @@ import (
 
 // Version represents a particular single version of a provider.
 type Version = versions.Version
+
+// UnspecifiedVersion is the zero value of Version, representing the absense
+// of a version number.
+var UnspecifiedVersion Version = versions.Unspecified
 
 // VersionList represents a list of versions. It is a []Version with some
 // extra methods for convenient filtering.
@@ -95,6 +98,13 @@ func MustParseVersionConstraints(str string) VersionConstraints {
 	return ret
 }
 
+// MeetingConstraints returns a version set that contains all of the versions
+// that meet the given constraints, specified using the Spec type from the
+// constraints package.
+func MeetingConstraints(vc VersionConstraints) VersionSet {
+	return versions.MeetingConstraints(vc)
+}
+
 // Platform represents a target platform that a provider is or might be
 // available for.
 type Platform struct {
@@ -170,14 +180,19 @@ type PackageMeta struct {
 	Filename string
 	Location PackageLocation
 
-	// FIXME: Our current hashing scheme only works for sources that have
-	// access to the original distribution archives, so this isn't always
-	// populated. Need to figure out a different approach where we can
-	// consistently hash both from an archive file and from an extracted
-	// archive to detect inconsistencies.
-	SHA256Sum [sha256.Size]byte
-
-	// TODO: Extra metadata for signature verification
+	// Authentication, if non-nil, is a request from the source that produced
+	// this meta for verification of the target package after it has been
+	// retrieved from the indicated Location.
+	//
+	// Different sources will support different authentication strategies --
+	// or possibly no strategies at all -- depending on what metadata they
+	// have available to them, such as checksums provided out-of-band by the
+	// original package author, expected signing keys, etc.
+	//
+	// If Authentication is non-nil then no authentication is requested.
+	// This is likely appropriate only for packages that are already available
+	// on the local system.
+	Authentication PackageAuthentication
 }
 
 // LessThan returns true if the receiver should sort before the given other
@@ -220,6 +235,7 @@ func (m PackageMeta) UnpackedDirectoryPath(baseDir string) string {
 // concrete types: PackageLocalArchive, PackageLocalDir, or PackageHTTPURL.
 type PackageLocation interface {
 	packageLocation()
+	String() string
 }
 
 // PackageLocalArchive is the location of a provider distribution archive file
@@ -229,6 +245,7 @@ type PackageLocation interface {
 type PackageLocalArchive string
 
 func (p PackageLocalArchive) packageLocation() {}
+func (p PackageLocalArchive) String() string   { return string(p) }
 
 // PackageLocalDir is the location of a directory containing an unpacked
 // provider distribution archive in the local filesystem. Its value is a local
@@ -237,12 +254,14 @@ func (p PackageLocalArchive) packageLocation() {}
 type PackageLocalDir string
 
 func (p PackageLocalDir) packageLocation() {}
+func (p PackageLocalDir) String() string   { return string(p) }
 
 // PackageHTTPURL is a provider package location accessible via HTTP.
 // Its value is a URL string using either the http: scheme or the https: scheme.
 type PackageHTTPURL string
 
 func (p PackageHTTPURL) packageLocation() {}
+func (p PackageHTTPURL) String() string   { return string(p) }
 
 // PackageMetaList is a list of PackageMeta. It's just []PackageMeta with
 // some methods for convenient sorting and filtering.

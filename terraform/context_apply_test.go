@@ -2637,7 +2637,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 			Type: "test_thing",
 			Name: "one",
 		}.Absolute(addrs.RootModuleInstance)
-		s.SetResourceMeta(oneAddr, states.EachList, providerAddr)
+		s.SetResourceProvider(oneAddr, providerAddr)
 		s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.IntKey(0)), &states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{}`),
@@ -6111,9 +6111,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 	//Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
-<no state>
-module.child:
-  <no state>`)
+<no state>`)
 	if actual != expected {
 		t.Fatalf("expected: \n%s\n\nbad: \n%s", expected, actual)
 	}
@@ -6269,9 +6267,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 	//Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
-<no state>
-module.child.child2:
-  <no state>`)
+<no state>`)
 	if actual != expected {
 		t.Fatalf("expected: \n%s\n\nbad: \n%s", expected, actual)
 	}
@@ -10938,5 +10934,121 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 	}
 	if !invalidErr {
 		t.Errorf("Expected unsupported argument error, none received")
+	}
+}
+
+func TestContext2Apply_expandModuleVariables(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "mod1" {
+  for_each = toset(["a"])
+  source = "./mod"
+}
+
+module "mod2" {
+  source = "./mod"
+  in = module.mod1["a"].out
+}
+`,
+		"mod/main.tf": `
+resource "aws_instance" "foo" {
+  foo = var.in
+}
+
+variable "in" {
+  type = string
+  default = "default"
+}
+
+output "out" {
+  value = aws_instance.foo.id
+}
+`,
+	})
+
+	p := testProvider("aws")
+	p.ApplyFn = testApplyFn
+	p.DiffFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Config: m,
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan()
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	state, diags := ctx.Apply()
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	expected := `<no state>
+module.mod1["a"]:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.terraform.io/hashicorp/aws"]
+    foo = default
+    type = aws_instance
+
+  Outputs:
+
+  out = foo
+module.mod2:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.terraform.io/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      module.mod1.aws_instance.foo`
+
+	if state.String() != expected {
+		t.Fatalf("expected:\n%s\ngot:\n%s\n", expected, state)
+	}
+}
+
+func TestContext2Apply_inheritAndStoreCBD(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "aws_instance" "foo" {
+}
+
+resource "aws_instance" "cbd" {
+  foo = aws_instance.foo.id
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+`,
+	})
+
+	p := testProvider("aws")
+	p.ApplyFn = testApplyFn
+	p.DiffFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Config: m,
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan()
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	state, diags := ctx.Apply()
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	foo := state.ResourceInstance(mustResourceInstanceAddr("aws_instance.foo"))
+	if !foo.Current.CreateBeforeDestroy {
+		t.Fatal("aws_instance.foo should also be create_before_destroy")
 	}
 }
