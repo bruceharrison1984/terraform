@@ -375,9 +375,6 @@ var CeilFunc = function.New(&function.Spec{
 		if err := gocty.FromCtyValue(args[0], &val); err != nil {
 			return cty.UnknownVal(cty.String), err
 		}
-		if math.IsInf(val, 0) {
-			return cty.NumberFloatVal(val), nil
-		}
 		return cty.NumberIntVal(int64(math.Ceil(val))), nil
 	},
 })
@@ -396,9 +393,6 @@ var FloorFunc = function.New(&function.Spec{
 		var val float64
 		if err := gocty.FromCtyValue(args[0], &val); err != nil {
 			return cty.UnknownVal(cty.String), err
-		}
-		if math.IsInf(val, 0) {
-			return cty.NumberFloatVal(val), nil
 		}
 		return cty.NumberIntVal(int64(math.Floor(val))), nil
 	},
