@@ -31,6 +31,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		// that would be useful to all applications using cty functions.
 
 		s.funcs = map[string]function.Function{
+			"deepmerge":        funcs.DeepMergeFunc,
 			"abs":              stdlib.AbsoluteFunc,
 			"abspath":          funcs.AbsPathFunc,
 			"basename":         funcs.BasenameFunc,
